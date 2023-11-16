@@ -28,10 +28,10 @@ def fecha_ini(tabla=None):
     cursor.close()
     conn.close()
     if ultfecha[0]:
-        fechaini = str(ultfecha[0])+'T00:00'
+        fechaini = str(ultfecha[0])
         return fechaini
     else:
-        fechaini=str(datetime.now().date()-timedelta(days=365))+'T00:00'
+        fechaini=str(datetime.now().date()-timedelta(days=365))
         return fechaini
     
 def insert_sql_dic(tabla,data,cursor,conn):
@@ -46,7 +46,7 @@ def insert_sql_dic(tabla,data,cursor,conn):
 
 
 
-def estructura_generacion(fechaini,fechafin,cortetiempo='day',limitgeo='peninsular'):
+def estructura_generacion(fechaini=None,fechafin=None,cortetiempo='day',limitgeo='peninsular'):
     conn, cursor = open_conn()
     crear_tabla = """
     CREATE TABLE IF NOT EXISTS datos_generacion (
@@ -62,9 +62,21 @@ def estructura_generacion(fechaini,fechafin,cortetiempo='day',limitgeo='peninsul
     conn.commit()
     url = 'https://apidatos.ree.es/es/datos/generacion/estructura-generacion'
 
+    if fechaini:
+        pass
+    else:
+        fechaini=fecha_ini(tabla='datos_generacion')
+    
+    if fechafin:
+        pass
+    else:
+        fechafin=str(datetime.now().date()-timedelta(days=1))
+
+    fechainiformat=f'{fechaini}T00:00'
+    fechafinformat=f'{fechafin}T23:59'
     query ={
-    'start_date' : fechaini,
-    'end_date' : fechafin,
+    'start_date' : fechainiformat,
+    'end_date' : fechafinformat,
     'time_trunc' : cortetiempo,
     'geo_limit' : limitgeo,
     }
@@ -93,11 +105,12 @@ def estructura_generacion(fechaini,fechafin,cortetiempo='day',limitgeo='peninsul
 
                     }
                     insert_sql_dic('datos_generacion',datatosql,cursor,conn)
+        print(f'Terminado generación: {fecha}')
     
     cursor.close()
     conn.close()
 
-def precio_energia(fecha='2023-11-14',cortetiempo='hour',limitgeo='peninsular', category='mercados',widget='precios-mercados-tiempo-real',dropjson=False):
+def precio_energia_medio_dia(fecha='2022-11-09',cortetiempo='hour',limitgeo='peninsular', category='mercados',widget='precios-mercados-tiempo-real',dropjson=False):
 
     conn, cursor = open_conn()
     widget_mod=widget.replace('-','_')
@@ -109,8 +122,7 @@ def precio_energia(fecha='2023-11-14',cortetiempo='hour',limitgeo='peninsular', 
     )
     """
 
-    cursor.execute(crear_tabla)
-    conn.commit()
+    
 
     #Formateo de fecha
     fechaini = f'{fecha}T00:00'
@@ -133,8 +145,10 @@ def precio_energia(fecha='2023-11-14',cortetiempo='hour',limitgeo='peninsular', 
             with open(f'{category}_{widget}.json', 'w') as archivo_json:
                 json.dump(jsonresponse, archivo_json)
         else:
+            cursor.execute(crear_tabla)
+            conn.commit()
+
             for precios in jsonresponse['included']:
-                print()
                 preciototal=0.
                 for precio in precios['attributes']['values']:
                     preciototal+=precio['value']
@@ -156,53 +170,38 @@ def precio_energia(fecha='2023-11-14',cortetiempo='hour',limitgeo='peninsular', 
         print(response.json())
     conn.close()
     cursor.close()
+    print(f'terminado precio: {fecha}')
 
-
-
-
-
-
-
-                    
-
-
-def balance_electrico():
-    url = 'https://apidatos.ree.es/es/datos/balance/balance-electrico'
-
-    query ={
-    'start_date' : '2023-10-26T00:00',
-    'end_date' : '2023-11-02T00:00',
-    'time_trunc' : 'day',
-    'geo_limit' : 'peninsular',
-    }
-
-    response = requests.get(url=url, params=query)
-
-    if response.status_code== requests.codes.ok:
-        """
-    with open('datos.json', 'w') as archivo_json:
-        json.dump(response.json(), archivo_json)
-    """
-        jsonresponse = response.json()
-        print(jsonresponse['data']['attributes']['title'])
-        print(jsonresponse['data']['attributes']['description'])
-
-        for fuentes in jsonresponse['included']:
-            for energias in fuentes['attributes']['content']:
-                print(energias['groupId'])
-                print(energias['attributes']['title'])
-                print(energias['attributes']['values'][0]['value'])
-
+def precio_energia_periodo(fechaini=None,fechafin=None):
+    if fechaini:
+        pass
     else:
-        response.raise_for_status()
+        fechaini=fecha_ini(tabla='mercados_precios_mercados_tiempo_real')
+    
+    if fechafin:
+        pass
+    else:
+        fechafin=str(datetime.now().date()-timedelta(days=1))
 
-    conn.close()
+    fechaini=parse(fechaini).date()
+    fechafin=parse(fechafin).date()
+    
+    diasperiodo= (fechafin-fechaini).days+1
+    
+    for dia in range(diasperiodo):
+        precio_energia_medio_dia(fechaini+timedelta(days=dia))
+        #print(fechaini+timedelta(days=dia))
+        
+
 
 #Ejecuciones
-inicio = fecha_ini(tabla='datos_generacion')
-ayer=str(datetime.now().date()-timedelta(days=1))+'T23:59'
-#estructura_generacion(fechaini=inicio,fechafin=ayer)
-precio_energia()
+
+#estructura_generacion()
+
+#precio_energia_periodo()
+
+precio_energia_medio_dia(category='demanda',widget='demanda-tiempo-real',dropjson=True,cortetiempo='day')
+
 
 if __name__ == '__main__':
     config = {
