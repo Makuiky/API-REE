@@ -1,20 +1,11 @@
 import requests, json
-import mysql.connector
 from dateutil.parser import parse
 from datetime import datetime, timedelta
+from .sqlfunc import *
+
 #electric-data-server
 #admin
-def open_conn():
-    config = {
-    'user': 'root',
-    'password': 'admin',
-    'host': 'localhost',
-    'database' : 'Datos_electricos_esp',
-}
 
-    conn = mysql.connector.connect(**config)
-    cursor = conn.cursor()
-    return conn,cursor
 
 def fecha_ini(tabla=None):
     conn, cursor = open_conn()
@@ -32,20 +23,7 @@ def fecha_ini(tabla=None):
         return fechaini
     else:
         fechaini=str(datetime.now().date()-timedelta(days=365))
-        return fechaini
-    
-def insert_sql_dic(tabla,data,cursor,conn):
-    queryin = "INSERT IGNORE INTO {} ({}) VALUES ({})".format(
-                             ''.join(tabla),
-                            ', '.join(data.keys()),
-                            ', '.join(['%s'] * len(data))
-                    )
-                   
-    cursor.execute(queryin,tuple(data.values()))
-    conn.commit()
-
-
-
+        return fechaini    
 def estructura_generacion(fechaini=None,fechafin=None,cortetiempo='day',limitgeo='peninsular'):
     conn, cursor = open_conn()
     crear_tabla = """
@@ -109,69 +87,6 @@ def estructura_generacion(fechaini=None,fechafin=None,cortetiempo='day',limitgeo
     
     cursor.close()
     conn.close()
-
-def precio_energia_medio_dia(fecha='2022-11-09',cortetiempo='hour',limitgeo='peninsular', category='mercados',widget='precios-mercados-tiempo-real',dropjson=False):
-
-    conn, cursor = open_conn()
-    widget_mod=widget.replace('-','_')
-    tabla= f'{category}_{widget_mod}'
-    crear_tabla = f"""CREATE TABLE IF NOT EXISTS {tabla}(
-    fecha_reg DATE PRIMARY KEY,
-    precio_spot_dia FLOAT,
-    precio_PVPC_dia FLOAT
-    )
-    """
-
-    
-
-    #Formateo de fecha
-    fechaini = f'{fecha}T00:00'
-    fechafin = f'{fecha}T23:59'
-    url = f'https://apidatos.ree.es/es/datos/{category}/{widget}'
-
-    query ={
-    'start_date' : fechaini,
-    'end_date' : fechafin,
-    'time_trunc' : cortetiempo,
-    'geo_limit' : limitgeo,
-    }
-    response = requests.get(url=url, params=query)
-
-    if response.status_code== requests.codes.ok: 
-        jsonresponse = response.json()
-
-        if dropjson:
-
-            with open(f'{category}_{widget}.json', 'w') as archivo_json:
-                json.dump(jsonresponse, archivo_json)
-        else:
-            cursor.execute(crear_tabla)
-            conn.commit()
-
-            for precios in jsonresponse['included']:
-                preciototal=0.
-                for precio in precios['attributes']['values']:
-                    preciototal+=precio['value']
-                    
-                if precios['type'] == 'PVPC (\u20ac/MWh)':
-                    preciomedioPVPC = preciototal/len(precios['attributes']['values'])
-                else:
-                    preciomedioSPOT = preciototal/len(precios['attributes']['values'])
-            
-            fecha=parse(fechaini).date()
-            datatosql = {'fecha_reg' : fecha,
-                         'precio_spot_dia' : preciomedioSPOT,
-                         'precio_PVPC_dia' : preciomedioPVPC,
-
-                }
-            
-            insert_sql_dic(tabla,datatosql,cursor,conn)
-    else:
-        print(response.json())
-    conn.close()
-    cursor.close()
-    print(f'terminado precio: {fecha}')
-
 def datos_energia_periodo(fechaini=None,fechafin=None):
     if fechaini:
         pass
@@ -258,24 +173,4 @@ def dato_media_dia(fecha='2022-11-09',cortetiempo='hour',limitgeo='peninsular', 
            
 #Ejecuciones
 
-estructura_generacion()
 
-datos_energia_periodo()
-
-#demanda_media_dia()
-
-
-if __name__ == '__main__':
-    config = {
-    'user': 'root',
-    'password': 'admin',
-    'host': 'localhost',
-}
-    conn = mysql.connector.connect(**config)
-    cursor = conn.cursor()
-    nombre_db = 'Datos_electricos_esp'
-    query_db = f'CREATE DATABASE IF NOT EXISTS {nombre_db}'
-    cursor.execute(query_db)
-    conn.commit()
-    cursor.close()
-    conn.close()

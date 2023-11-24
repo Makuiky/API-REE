@@ -1,2 +1,4 @@
 *.json
 pruebas.py
+gvar.py
+*pycache*
