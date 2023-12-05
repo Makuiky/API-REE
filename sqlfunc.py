@@ -1,4 +1,7 @@
-from .gvar import *
+try:
+    from .gvar import *
+except:
+    from gvar import *
 import mysql.connector
 
 def open_conn():

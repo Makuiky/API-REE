@@ -1,7 +1,10 @@
 import requests, json
 from dateutil.parser import parse
 from datetime import datetime, timedelta
-from .sqlfunc import *
+try:
+    from .sqlfunc import *
+except:
+    from sqlfunc import *
 
 #electric-data-server
 #admin
