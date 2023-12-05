@@ -7,11 +7,11 @@ El proyecto se puede emplear tanto con el main incluido en el mismo como mediant
 ## Creación de gvar.py
 Es muy importante para que funcione este proyecto crear el documento gvar.py que contrendá variables de conexión a bbdd y datos de la api key con la siguiente estructura:
 
-USER = 'usuario server'
+``` USER = 'usuario server'
 PASS = 'password server'
 HOST = 'direccion server'
 DATABASE = 'Datos_electricos_esp' #se podría cambiar ya que la bbdd se crea en la primera ejecución
-
+```
 Este archivo no se han incluido para evitar filtrar estos datos en futuras actualizaciones del proyecto.
 
 ## Creación del servidor
